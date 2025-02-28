@@ -1,0 +1,132 @@
+import asyncio
+import logging
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.types import (
+    ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+)
+from aiogram.filters import Command
+from aiogram.types import CallbackQuery
+
+# Bot token and admin ID
+TOKEN = "7708223411:AAF7cVtdY25rn5UmzkaweOhUENkYmyXJbvc"
+ADMIN_ID = "7988043494"  # Replace with your Telegram ID
+
+# Initialize bot and dispatcher
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
+
+# Logging setup
+logging.basicConfig(level=logging.INFO)
+
+# Welcome buttons
+agree_disagree_kb = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="✅ Agree", callback_data="agree"),
+     InlineKeyboardButton(text="❌ Disagree", callback_data="disagree")]
+])
+
+# Contact-sharing keyboard (Fixed `keyboard=` issue)
+contact_kb = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text="📞 Share Contact", request_contact=True)]],
+    resize_keyboard=True, one_time_keyboard=True
+)
+
+# Semester options
+semester_kb = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="📘 Sem 1", callback_data="sem_1"),
+     InlineKeyboardButton(text="📗 Sem 2", callback_data="sem_2")],
+    [InlineKeyboardButton(text="📙 Sem 3", callback_data="sem_3"),
+     InlineKeyboardButton(text="🎓 3rd Year", callback_data="third_year")],
+    [InlineKeyboardButton(text="👨‍💼 Admin", callback_data="admin")]
+])
+
+# Revaluation buttons
+reval_kb = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="✅ Yes", callback_data="reval_yes"),
+     InlineKeyboardButton(text="❌ No", callback_data="reval_no")]
+])
+
+# Backlog options
+backlog_kb = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="1 (₹6000)", callback_data="backlog_1"),
+     InlineKeyboardButton(text="2 (₹7500)", callback_data="backlog_2")],
+    [InlineKeyboardButton(text="3 (₹8500)", callback_data="backlog_3"),
+     InlineKeyboardButton(text="Many (₹10000)", callback_data="backlog_many")]
+])
+
+# Done button
+done_kb = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="✅ Done", callback_data="done")]
+])
+
+# Dictionary to store user data
+user_data = {}
+
+@dp.message(Command("start"))
+async def start(message: types.Message):
+    await message.answer("Welcome! Please agree to continue. Remember Dont ask for contact , Due to privacy i wont provide my contack details no phone calls You habe to pay full payment first then work ,You can also choose to talk to me i will talk to you on telegram only dont share this bot to anyone this is a secret bot! if you have any doubt im here for you! Refund if work not done whole money !", reply_markup=agree_disagree_kb)
+
+@dp.callback_query(F.data == "agree")
+async def process_agree(callback_query: CallbackQuery):
+    await bot.send_message(callback_query.from_user.id, "Please share your contact.", reply_markup=contact_kb)
+
+@dp.callback_query(F.data == "disagree")
+async def process_disagree(callback_query: CallbackQuery):
+    await bot.send_message(callback_query.from_user.id, "Chat cleared. Goodbye!")
+    await bot.delete_message(callback_query.from_user.id, callback_query.message.message_id)
+
+@dp.message(F.contact)
+async def process_contact(message: types.Message):
+    user_id = message.from_user.id
+    contact_number = message.contact.phone_number
+    user_data[user_id] = {"contact": contact_number}
+    await message.answer("Choose your semester or contact admin.", reply_markup=semester_kb)
+
+@dp.callback_query(F.data.in_(["sem_1", "sem_2", "sem_3", "third_year"]))
+async def process_semester(callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    user_data[user_id]["semester"] = callback_query.data.replace("_", " ").title()
+    await bot.send_message(user_id, "Did you fill the revaluation form?", reply_markup=reval_kb)
+
+@dp.callback_query(F.data == "admin")
+async def process_admin(callback_query: CallbackQuery):
+    await bot.send_message(callback_query.from_user.id, "You want to contact the admin.")
+
+@dp.callback_query(F.data.in_(["reval_yes", "reval_no"]))
+async def process_revaluation(callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    user_data[user_id]["revaluation"] = callback_query.data.replace("reval_", "").title()
+    await bot.send_message(user_id, "How many backlogs do you have?", reply_markup=backlog_kb)
+
+@dp.callback_query(F.data.startswith("backlog_"))
+async def process_backlog(callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    user_data[user_id]["backlogs"] = callback_query.data.replace("backlog_", "").title()
+    await bot.send_message(user_id, "Confirm submission.", reply_markup=done_kb)
+
+@dp.callback_query(F.data == "done")
+async def process_done(callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    details = user_data.get(user_id, {})
+
+    contact = details.get("contact", "N/A")
+    semester = details.get("semester", "N/A")
+    revaluation = details.get("revaluation", "N/A")
+    backlogs = details.get("backlogs", "N/A")
+
+    summary = (f"📌 **User Details:**\n"
+               f"📞 Contact: {contact}\n"
+               f"📘 Semester: {semester}\n"
+               f"📝 Revaluation: {revaluation}\n"
+               f"📚 Backlogs: {backlogs}")
+
+    # Send details to user and admin
+    await bot.send_message(user_id, summary, parse_mode="Markdown")
+    await bot.send_message(ADMIN_ID, f"🚨 **New Submission:**\n{summary}", parse_mode="Markdown")
+
+    await bot.send_message(user_id, "✅ Submission received successfully!")
+
+async def main():
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
