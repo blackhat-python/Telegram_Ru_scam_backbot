@@ -8,8 +8,8 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery
 
 # Bot token and admin ID
-TOKEN = "7708223411:AAF7cVtdY25rn5UmzkaweOhUENkYmyXJbvc"
-ADMIN_ID = "7988043494"  # Replace with your Telegram ID
+TOKEN = "7703411:5UmzkaweOhUENkYmyXJbvc"
+ADMIN_ID = "7988494"  # Replace with your Telegram ID
 
 # Initialize bot and dispatcher
 bot = Bot(token=TOKEN)
